@@ -9,10 +9,10 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "canvas-record": "^5.1.0",
     "@react-three/drei": "^9.109.5",
     "@react-three/fiber": "^8.17.5",
     "@types/three": "^0.167.1",
+    "canvas-capture": "^2.1.1",
     "next": "^14.2.17",
     "react": "^18",
     "react-dom": "^18",

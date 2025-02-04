@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import ModelLoader from "@/app/Components/ModelLoader";
+import ModelLoader from "@/app/Components/ModelLoader.client";
 
 export default function Home() {
     return (

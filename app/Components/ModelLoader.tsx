@@ -13,8 +13,11 @@ const ModelLoader: React.FC = () => {
     const inputRef = useRef<HTMLInputElement>(null);
     const [bgColor, setBgColor] = useState('#1f2937');
     const [isRotating, setIsRotating] = useState<boolean>(false);
-    const [axis, setAxis] = useState('x');
-    const [duration, setDuration] = useState(5);
+    const [axis, setAxis] = useState<string>('x');
+    const [duration, setDuration] = useState<number>(5);
+    const [speed, setSpeed] = useState<number>(1);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [isRecording, setIsRecording] = useState<boolean>(false);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -25,6 +28,13 @@ const ModelLoader: React.FC = () => {
         }
     };
 
+    useEffect(() => {
+        if (canvasRef.current) {
+            canvasRef.current.style.width = '100%';
+            canvasRef.current.style.height = '100%';
+        }
+    })
+
     const handleButtonClick = () => {
         inputRef.current?.click();
     };
@@ -33,39 +43,91 @@ const ModelLoader: React.FC = () => {
         setIsRotating((prev) => !prev);
     };
 
-    const handleAxisChange = (event : any) => {
+    const handleAxisChange = (event: any) => {
         setAxis(event.target.value);
     };
 
-    const handleDurationChange = (event : any) => {
+    const handleDurationChange = (event: any) => {
         setDuration(event.target.value);
     };
 
-    const createRecord = () => {
+    const handleSpeedChange = (event: any) => {
+        setSpeed(event.target.value);
+    };
 
-    }
-    
+    const createRecord = async () => {
+        if (!canvasRef.current || !modelData) return;
+      
+        try {
+          const stream = canvasRef.current.captureStream(30);
+          const options = { mimeType: 'video/webm; codecs=vp9' };
+          const recorder = new MediaRecorder(stream, options);
+          const chunks: Blob[] = [];
+      
+          recorder.ondataavailable = (event) => {
+            if (event.data.size > 0) chunks.push(event.data);
+          };
+      
+          recorder.onstop = () => {
+            const blob = new Blob(chunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `recording-${Date.now()}.webm`;
+            a.click();
+            URL.revokeObjectURL(url);
+            setIsRecording(false);
+          };
+      
+          // Start recording with time slice
+          recorder.start(100); // Collect data every 100ms
+          setIsRecording(true);
+          
+          setTimeout(() => {
+            recorder.stop();
+            stream.getTracks().forEach(track => track.stop());
+          }, duration * 1000);
+      
+        } catch (error) {
+          console.error('Recording failed:', error);
+          setIsRecording(false);
+        }
+    };
+
     return (
         <div className="flex flex-row h-[80vh] w-full rounded-xl overflow-hidden shadow-2xl">
             {/* Sidebar */}
             <div className="w-64 p-6 bg-gradient-to-b from-gray-800 to-gray-900 border-r border-gray-700 flex flex-col gap-6">
                 <button
                     onClick={handleButtonClick}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg text-white
-                             font-semibold hover:scale-105 transform transition-all duration-200 shadow-lg
-                             hover:shadow-xl active:scale-95"
+                    className="px-6 py-3 bg-gradient-to-r from-blue-700 to-red-600 rounded-lg text-white
+                          font-semibold hover:scale-105 transform transition-all duration-200 shadow-lg
+                          hover:shadow-xl active:scale-95"
                 >
                     📁 Upload Model
                 </button>
 
                 <button
                     onClick={toggleRotation}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg text-white
-                            font-semibold hover:scale-105 transform transition-all duration-200 shadow-lg
-                            hover:shadow-xl active:scale-95"
+                    className="px-6 py-3 bg-gradient-to-r from-blue-700 to-red-600 rounded-lg text-white
+                         font-semibold hover:scale-105 transform transition-all duration-200 shadow-lg
+                         hover:shadow-xl active:scale-95"
                 >
                     {isRotating ? "⏹ Stop Rotation" : "🔃 Rotate Model"}
                 </button>
+
+                <div className="mt-4">
+                    <label className="block text-white">Rotation speed :</label>
+                    <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        value={speed}
+                        onChange={handleSpeedChange}
+                        className="mt-2 w-full"
+                    />
+                    <span className="text-white">{speed}</span>
+                </div>
 
                 <div className="mt-4">
                     <label className="block text-white">Choose Axis:</label>
@@ -117,13 +179,18 @@ const ModelLoader: React.FC = () => {
                 </div>
 
                 <button
-                    onClick={createRecord}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg text-white
-                            font-semibold hover:scale-105 transform transition-all duration-200 shadow-lg
-                            hover:shadow-xl active:scale-95 mt-4"
+                onClick={createRecord}
+                disabled={!modelData}
+                className={`px-6 py-3 bg-gradient-to-r from-blue-700 to-red-600 rounded-lg text-white
+                    font-semibold hover:scale-105 transform transition-all duration-200 shadow-lg
+                    hover:shadow-xl active:scale-95 mt-4 ${!modelData ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                    📹 Create Record
+                📹 Create Record
                 </button>
+
+                <div className="absolute top-2 right-2 text-red-500 text-sm">
+                {isRecording ? 'Recording' : ''}
+                </div>
 
                 <input
                     ref={inputRef}
@@ -152,13 +219,15 @@ const ModelLoader: React.FC = () => {
 
             {/* Canvas Container */}
             <div className="flex-1 relative" style={{ backgroundColor: bgColor }}>
-                <Canvas
-                    camera={{ position: [2, 2, 2] }}
-                    className="rounded-r-xl"
+            <Canvas
+                ref={canvasRef}
+                camera={{ position: [2, 2, 2] }}
+                className="rounded-r-xl"
+                gl={{ preserveDrawingBuffer: true }}
+                frameloop={isRecording ? "always" : "demand"} // Force continuous rendering during recording
                 >
                     <ambientLight intensity={0.5} />
-                    <pointLight position={[10, 10, 10]} />
-                    {modelData && <Model {...modelData} isRotating={isRotating} />}
+                    {modelData && <Model {...modelData} isRotating={isRotating} speed={speed} axis={axis} />}
                     <OrbitControls
                         makeDefault
                         enableDamping
@@ -178,8 +247,10 @@ const ModelLoader: React.FC = () => {
     );
 };
 
-const Model: React.FC<{ url: string; type: string; isRotating: boolean }> = ({ url, type, isRotating }) => {
+const Model: React.FC<{ url: string; type: string; isRotating: boolean; speed: number; axis: string }> = ({ url, type, isRotating, speed, axis }) => {
+    // @ts-ignore
     const [scene, setScene] = useState<THREE.Group | null>(null);
+    // @ts-ignore
     const modelRef = useRef<THREE.Group>(null);
 
     useEffect(() => {
@@ -210,21 +281,26 @@ const Model: React.FC<{ url: string; type: string; isRotating: boolean }> = ({ u
 
     // Handle continuous rotation
     useEffect(() => {
-        if (!isRotating || !modelRef.current) return;
+        if (!modelRef.current) return;
 
-        let frameId: number;
+        let animationId: number;
         const animate = () => {
-            if (modelRef.current) {
-                modelRef.current.rotation.y += 0.01; // Adjust speed as needed
+          if (isRotating && modelRef.current) {
+            switch (axis) {
+              case 'x': modelRef.current.rotation.x += 0.01 * speed; break;
+              case 'y': modelRef.current.rotation.y += 0.01 * speed; break;
+              case 'z': modelRef.current.rotation.z += 0.01 * speed; break;
             }
-            frameId = requestAnimationFrame(animate);
+          }
+          animationId = requestAnimationFrame(animate);
         };
 
         animate();
 
-        return () => cancelAnimationFrame(frameId);
-    }, [isRotating]);
+        return () => cancelAnimationFrame(animationId);
+    }, [isRotating, speed, axis]);
 
+    // @ts-ignore
     return scene ? <primitive object={scene} ref={modelRef} /> : null;
 };
 
