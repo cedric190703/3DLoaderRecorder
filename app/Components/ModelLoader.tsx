@@ -257,6 +257,7 @@ const ModelLoader: React.FC = () => {
                 gl={{ preserveDrawingBuffer: true }}
                 frameloop={isRecording ? "always" : "demand"} // Force continuous rendering during recording
                 >
+                    {/* @ts-ignore */}
                     <ambientLight intensity={0.5} />
                     {modelData && <Model {...modelData} isRotating={isRotating} speed={speed} axis={axis} />}
                     <OrbitControls
