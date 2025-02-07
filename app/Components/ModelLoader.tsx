@@ -18,6 +18,7 @@ const ModelLoader: React.FC = () => {
     const [speed, setSpeed] = useState<number>(1);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isRecording, setIsRecording] = useState<boolean>(false);
+    const [videoFormat, setVideoFormat] = useState<string>("mp4");
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -47,6 +48,10 @@ const ModelLoader: React.FC = () => {
         setAxis(event.target.value);
     };
 
+    const handleVideoFormatChange = (event: any) => {
+        setVideoFormat(event.target.value);
+    };
+
     const handleDurationChange = (event: any) => {
         setDuration(event.target.value);
     };
@@ -60,7 +65,7 @@ const ModelLoader: React.FC = () => {
       
         try {
           const stream = canvasRef.current.captureStream(30);
-          const options = { mimeType: 'video/webm; codecs=vp9' };
+          const options = { mimeType: `video/${videoFormat}; codecs=vp9` };
           const recorder = new MediaRecorder(stream, options);
           const chunks: Blob[] = [];
       
@@ -69,11 +74,11 @@ const ModelLoader: React.FC = () => {
           };
       
           recorder.onstop = () => {
-            const blob = new Blob(chunks, { type: 'video/webm' });
+            const blob = new Blob(chunks, { type: `video/${videoFormat}` });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `recording-${Date.now()}.webm`;
+            a.download = `recording-${Date.now()}.${videoFormat}`;
             a.click();
             URL.revokeObjectURL(url);
             setIsRecording(false);
@@ -140,7 +145,7 @@ const ModelLoader: React.FC = () => {
                                 onChange={handleAxisChange}
                                 className="form-radio text-white"
                             />
-                            <span className="ml-2 text-white">X-Axis</span>
+                            <span className="ml-2 text-white">X</span>
                         </label>
                         <label className="inline-flex items-center">
                             <input
@@ -150,7 +155,7 @@ const ModelLoader: React.FC = () => {
                                 onChange={handleAxisChange}
                                 className="form-radio text-white"
                             />
-                            <span className="ml-2 text-white">Y-Axis</span>
+                            <span className="ml-2 text-white">Y</span>
                         </label>
                         <label className="inline-flex items-center">
                             <input
@@ -160,7 +165,7 @@ const ModelLoader: React.FC = () => {
                                 onChange={handleAxisChange}
                                 className="form-radio text-white"
                             />
-                            <span className="ml-2 text-white">Z-Axis</span>
+                            <span className="ml-2 text-white">Z</span>
                         </label>
                     </div>
                 </div>
@@ -188,8 +193,34 @@ const ModelLoader: React.FC = () => {
                 📹 Create Record
                 </button>
 
-                <div className="absolute top-2 right-2 text-red-500 text-sm">
-                {isRecording ? 'Recording' : ''}
+                <div className="absolute top-2 right-2 text-red-700 text-2xl">
+                {isRecording ? '🔴 Recording' : ''}
+                </div>
+
+                <div className="mt-4">
+                    <label className="block text-white">Choose Video format:</label>
+                    <div className="flex space-x-4 mt-2">
+                        <label className="inline-flex items-center">
+                            <input
+                                type="radio"
+                                value="mp4"
+                                checked={videoFormat === 'mp4'}
+                                onChange={handleVideoFormatChange}
+                                className="form-radio text-white"
+                            />
+                            <span className="ml-2 text-white">MP4</span>
+                        </label>
+                        <label className="inline-flex items-center">
+                            <input
+                                type="radio"
+                                value="webm"
+                                checked={videoFormat === 'webm'}
+                                onChange={handleVideoFormatChange}
+                                className="form-radio text-white"
+                            />
+                            <span className="ml-2 text-white">WEBM</span>
+                        </label>
+                    </div>
                 </div>
 
                 <input
