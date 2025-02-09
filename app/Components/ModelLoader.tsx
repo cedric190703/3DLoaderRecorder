@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useRef, useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
@@ -60,6 +58,15 @@ const ModelLoader: React.FC = () => {
         setSpeed(event.target.value);
     };
 
+    const setCanvasBackground = (color: string) => {
+        if (!canvasRef.current) return;
+        const ctx = canvasRef.current.getContext('2d');
+        if (ctx) {
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        }
+    };
+
     const createRecord = async () => {
         if (!canvasRef.current || !modelData) return;
       
@@ -68,6 +75,7 @@ const ModelLoader: React.FC = () => {
           const options = { mimeType: `video/${videoFormat}; codecs=vp9` };
           const recorder = new MediaRecorder(stream, options);
           const chunks: Blob[] = [];
+          setCanvasBackground(bgColor);
       
           recorder.ondataavailable = (event) => {
             if (event.data.size > 0) chunks.push(event.data);
@@ -249,13 +257,14 @@ const ModelLoader: React.FC = () => {
             </div>
 
             {/* Canvas Container */}
-            <div className="flex-1 relative" style={{ backgroundColor: bgColor }}>
+            <div className="flex-1 relative">
             <Canvas
                 ref={canvasRef}
                 camera={{ position: [2, 2, 2] }}
                 className="rounded-r-xl"
                 gl={{ preserveDrawingBuffer: true }}
-                frameloop={isRecording ? "always" : "demand"} // Force continuous rendering during recording
+                frameloop={"always"}
+                style={{ backgroundColor: bgColor }}
                 >
                     {/* @ts-ignore */}
                     <ambientLight intensity={0.5} />
@@ -291,12 +300,20 @@ const Model: React.FC<{ url: string; type: string; isRotating: boolean; speed: n
 
         const loadModel = async () => {
             try {
+                // @ts-ignore
+                let loadedScene: THREE.Group | null = null;
+
                 if (type === 'glb') {
                     const gltf = await loader.loadAsync(url);
-                    if (isMounted) setScene(gltf.scene);
+                    loadedScene = gltf.scene;
                 } else if (type === 'fbx') {
                     const fbx = await loader.loadAsync(url);
-                    if (isMounted) setScene(fbx);
+                    loadedScene = fbx;
+                }
+
+                if (isMounted && loadedScene) {
+                    setScene(loadedScene);
+                    modelRef.current = loadedScene;
                 }
             } catch (error) {
                 console.error('Error loading model:', error);
@@ -313,23 +330,23 @@ const Model: React.FC<{ url: string; type: string; isRotating: boolean; speed: n
 
     // Handle continuous rotation
     useEffect(() => {
-        if (!modelRef.current) return;
-
         let animationId: number;
         const animate = () => {
-          if (isRotating && modelRef.current) {
-            switch (axis) {
-              case 'x': modelRef.current.rotation.x += 0.01 * speed; break;
-              case 'y': modelRef.current.rotation.y += 0.01 * speed; break;
-              case 'z': modelRef.current.rotation.z += 0.01 * speed; break;
+            if (isRotating && modelRef.current) {
+                switch (axis) {
+                    case 'x': modelRef.current.rotation.x += 0.01 * speed; break;
+                    case 'y': modelRef.current.rotation.y += 0.01 * speed; break;
+                    case 'z': modelRef.current.rotation.z += 0.01 * speed; break;
+                }
             }
-          }
-          animationId = requestAnimationFrame(animate);
+            animationId = requestAnimationFrame(animate);
         };
 
         animate();
 
-        return () => cancelAnimationFrame(animationId);
+        return () => {
+            cancelAnimationFrame(animationId);
+        };
     }, [isRotating, speed, axis]);
 
     // @ts-ignore
